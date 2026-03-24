@@ -38,6 +38,7 @@ export async function POST(request: NextRequest) {
 
     // Verify wallet signature
     const valid = await verifyWalletSignature(address, signature);
+    console.log("[profile] verify:", { address, valid, sigLen: signature?.length });
     if (!valid) {
       return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
     }
