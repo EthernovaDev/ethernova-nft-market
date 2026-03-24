@@ -202,6 +202,36 @@ export default function NFTDetailPage({
               <p className="text-gray-500">This NFT is not currently listed for sale.</p>
             </div>
           )}
+          {/* Add to Wallet */}
+          {isConnected && (
+            <button
+              onClick={async () => {
+                const ethereum = (window as unknown as { ethereum?: { request: (args: { method: string; params: unknown }) => Promise<unknown> } }).ethereum;
+                if (!ethereum) return;
+                try {
+                  await ethereum.request({
+                    method: "wallet_watchAsset",
+                    params: {
+                      type: "ERC721",
+                      options: {
+                        address: collection,
+                        tokenId: tokenId,
+                      },
+                    },
+                  });
+                  toast.success("NFT added to wallet!");
+                } catch {
+                  toast.error("Failed to add to wallet");
+                }
+              }}
+              className="mt-4 w-full py-2.5 border border-gray-700 rounded-lg text-sm text-gray-300 hover:border-purple-500 hover:text-white transition-all flex items-center justify-center gap-2"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+              Import to Wallet
+            </button>
+          )}
         </div>
       </div>
     </div>
