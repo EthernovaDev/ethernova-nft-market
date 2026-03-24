@@ -20,6 +20,9 @@ export default function Navbar() {
               <Link href="/" className="text-gray-400 hover:text-white transition-colors text-sm">
                 Explore
               </Link>
+              <Link href="/mint" className="text-gray-400 hover:text-white transition-colors text-sm">
+                Mint
+              </Link>
               <Link href="/sell" className="text-gray-400 hover:text-white transition-colors text-sm">
                 Sell
               </Link>
