@@ -22,6 +22,10 @@ export const metadata: Metadata = {
   description:
     "Buy, sell, and discover NFTs on the Ethernova blockchain. The premier marketplace for the NOVA ecosystem.",
   keywords: ["Ethernova", "NFT", "Marketplace", "NOVA", "EVM", "POW"],
+  icons: {
+    icon: "/logo.png",
+    apple: "/logo.png",
+  },
 };
 
 export default function RootLayout({
