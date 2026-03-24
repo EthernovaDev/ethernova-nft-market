@@ -7,6 +7,7 @@ import { formatEther } from "viem";
 import { MARKETPLACE_ADDRESS, hasMarketplace } from "@/consts/addresses";
 import { marketplaceAbi, nftAbi } from "@/consts/abis";
 import toast from "react-hot-toast";
+import { useNovaPrice } from "@/lib/useNovaPrice";
 
 type Listing = {
   listingId: bigint;
@@ -64,6 +65,7 @@ export default function NFTDetailPage({
       l.tokenId.toString() === tokenId
   );
 
+  const { novaToUsd } = useNovaPrice();
   const { writeContract, data: txHash, isPending } = useWriteContract();
   const { isLoading: isConfirming } = useWaitForTransactionReceipt({ hash: txHash });
   const isBuying = isPending || isConfirming;
@@ -159,11 +161,18 @@ export default function NFTDetailPage({
           {/* Listing / Buy */}
           {listing ? (
             <div className="bg-gray-900/50 rounded-xl border border-gray-800 p-6">
-              <div className="flex items-center justify-between mb-4">
-                <span className="text-gray-400">Current Price</span>
-                <span className="text-2xl font-bold text-cyan-400">
-                  {formatEther(listing.price)} NOVA
-                </span>
+              <div className="mb-4">
+                <span className="text-gray-400 text-sm">Current Price</span>
+                <div className="flex items-baseline gap-2 mt-1">
+                  <span className="text-3xl font-bold text-cyan-400">
+                    {formatEther(listing.price)} NOVA
+                  </span>
+                  {novaToUsd(formatEther(listing.price)) && (
+                    <span className="text-gray-500 text-lg">
+                      ({novaToUsd(formatEther(listing.price))})
+                    </span>
+                  )}
+                </div>
               </div>
               <p className="text-gray-500 text-sm mb-4">
                 Seller: {listing.seller.slice(0, 6)}...

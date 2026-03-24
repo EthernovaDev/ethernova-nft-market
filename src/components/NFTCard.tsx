@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
+import { useNovaPrice } from "@/lib/useNovaPrice";
 
 type NFTCardProps = {
   tokenId: string;
@@ -20,6 +21,9 @@ export default function NFTCard({
   collectionAddress,
   seller,
 }: NFTCardProps) {
+  const { novaToUsd } = useNovaPrice();
+  const usdPrice = price ? novaToUsd(price) : null;
+
   return (
     <Link href={`/nft/${collectionAddress}/${tokenId}`}>
       <div className="group bg-gray-900 rounded-xl overflow-hidden border border-gray-800 hover:border-purple-500/50 transition-all duration-300 hover:shadow-lg hover:shadow-purple-500/10">
@@ -46,9 +50,14 @@ export default function NFTCard({
             </p>
           )}
           {price && (
-            <div className="mt-3 flex items-center justify-between">
-              <span className="text-gray-400 text-xs">Price</span>
-              <span className="text-cyan-400 font-bold">{price} NOVA</span>
+            <div className="mt-3">
+              <div className="flex items-center justify-between">
+                <span className="text-gray-400 text-xs">Price</span>
+                <span className="text-cyan-400 font-bold">{price} NOVA</span>
+              </div>
+              {usdPrice && (
+                <p className="text-right text-gray-500 text-xs mt-0.5">{usdPrice}</p>
+              )}
             </div>
           )}
         </div>
