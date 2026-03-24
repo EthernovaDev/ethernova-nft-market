@@ -5,6 +5,7 @@ import { formatEther } from "viem";
 import { MARKETPLACE_ADDRESS, NFT_COLLECTION_ADDRESS, hasContracts } from "@/consts/addresses";
 import { marketplaceAbi, nftAbi } from "@/consts/abis";
 import NFTCard from "@/components/NFTCard";
+import OwnedNFTCard from "@/components/OwnedNFTCard";
 
 type Listing = {
   listingId: bigint;
@@ -98,11 +99,9 @@ export default function ProfilePage() {
                   if (result.status !== "success") return null;
                   const tid = result.result as bigint;
                   return (
-                    <NFTCard
+                    <OwnedNFTCard
                       key={tid.toString()}
-                      tokenId={tid.toString()}
-                      name={`NFT #${tid}`}
-                      image=""
+                      tokenId={tid}
                       collectionAddress={NFT_COLLECTION_ADDRESS}
                     />
                   );

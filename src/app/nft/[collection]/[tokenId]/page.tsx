@@ -8,6 +8,7 @@ import { MARKETPLACE_ADDRESS, hasMarketplace } from "@/consts/addresses";
 import { marketplaceAbi, nftAbi } from "@/consts/abis";
 import toast from "react-hot-toast";
 import { useNovaPrice } from "@/lib/useNovaPrice";
+import { useNFTMetadata } from "@/lib/useNFTMetadata";
 
 type Listing = {
   listingId: bigint;
@@ -66,6 +67,7 @@ export default function NFTDetailPage({
   );
 
   const { novaToUsd } = useNovaPrice();
+  const { metadata } = useNFTMetadata(tokenURI as string | undefined);
   const { writeContract, data: txHash, isPending } = useWriteContract();
   const { isLoading: isConfirming } = useWaitForTransactionReceipt({ hash: txHash });
   const isBuying = isPending || isConfirming;
@@ -110,13 +112,12 @@ export default function NFTDetailPage({
       <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
         {/* NFT Image */}
         <div className="aspect-square rounded-2xl overflow-hidden bg-gray-900 border border-gray-800 relative">
-          {tokenURI ? (
-            <div className="w-full h-full flex items-center justify-center p-8">
-              <div className="text-center">
-                <div className="w-32 h-32 bg-gradient-to-br from-purple-500 to-cyan-400 rounded-2xl mx-auto mb-4" />
-                <p className="text-gray-400 text-sm break-all">{tokenURI as string}</p>
-              </div>
-            </div>
+          {metadata?.image ? (
+            <img
+              src={metadata.image}
+              alt={metadata.name || `NFT #${tokenId}`}
+              className="w-full h-full object-cover"
+            />
           ) : (
             <div className="w-full h-full flex items-center justify-center text-gray-600 text-6xl">
               ?
@@ -130,8 +131,12 @@ export default function NFTDetailPage({
             {(collectionName as string) ?? `${collection.slice(0, 6)}...${collection.slice(-4)}`}
           </p>
           <h1 className="text-3xl font-bold text-white mb-4">
-            NFT #{tokenId}
+            {metadata?.name || `NFT #${tokenId}`}
           </h1>
+
+          {metadata?.description && (
+            <p className="text-gray-400 mb-6">{metadata.description}</p>
+          )}
 
           {/* Owner */}
           <div className="bg-gray-900/50 rounded-xl border border-gray-800 p-4 mb-6">
