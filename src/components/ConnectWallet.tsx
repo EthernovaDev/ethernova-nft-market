@@ -2,34 +2,73 @@
 
 import { useAccount, useConnect, useDisconnect, useBalance, useSwitchChain } from "wagmi";
 import { ethernova } from "@/consts/chain";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 export default function ConnectWallet() {
   const { address, isConnected, chain } = useAccount();
-  const { connect, connectors, isPending } = useConnect();
+  const { connect, connectors, isPending, error } = useConnect();
   const { disconnect } = useDisconnect();
   const { switchChain } = useSwitchChain();
   const [showMenu, setShowMenu] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const { data: balance } = useBalance({
     address,
     query: { enabled: isConnected },
   });
 
+  // Don't render until client-side to avoid hydration mismatch
+  if (!mounted) {
+    return (
+      <button
+        disabled
+        className="px-5 py-2.5 bg-gradient-to-r from-purple-600 to-cyan-500 rounded-lg font-semibold text-white text-sm opacity-50"
+      >
+        Connect Wallet
+      </button>
+    );
+  }
+
   const wrongChain = isConnected && chain?.id !== ethernova.id;
 
   if (!isConnected) {
+    const hasWallet = typeof window !== "undefined" && (window as unknown as Record<string, unknown>).ethereum;
+
     return (
-      <button
-        onClick={() => {
-          const injected = connectors.find((c) => c.id === "injected");
-          if (injected) connect({ connector: injected });
-        }}
-        disabled={isPending}
-        className="px-5 py-2.5 bg-gradient-to-r from-purple-600 to-cyan-500 rounded-lg font-semibold text-white text-sm hover:opacity-90 transition-opacity disabled:opacity-50"
-      >
-        {isPending ? "Connecting..." : "Connect Wallet"}
-      </button>
+      <div className="flex flex-col items-end gap-1">
+        <button
+          onClick={() => {
+            if (!hasWallet) {
+              window.open("https://metamask.io/download/", "_blank");
+              return;
+            }
+            // Try all available connectors, pick the first one
+            const connector = connectors[0];
+            if (connector) {
+              connect({ connector, chainId: ethernova.id });
+            }
+          }}
+          disabled={isPending}
+          className="px-5 py-2.5 bg-gradient-to-r from-purple-600 to-cyan-500 rounded-lg font-semibold text-white text-sm hover:opacity-90 transition-opacity disabled:opacity-50"
+        >
+          {isPending
+            ? "Connecting..."
+            : hasWallet
+              ? "Connect Wallet"
+              : "Install MetaMask"}
+        </button>
+        {error && (
+          <p className="text-red-400 text-xs max-w-[200px] truncate">
+            {error.message.includes("User rejected")
+              ? "Connection rejected"
+              : "Connection failed"}
+          </p>
+        )}
+      </div>
     );
   }
 
