@@ -1,9 +1,12 @@
-import { getDefaultConfig } from "@rainbow-me/rainbowkit";
+import { http, createConfig } from "wagmi";
+import { injected } from "wagmi/connectors";
 import { ethernova } from "@/consts/chain";
 
-export const wagmiConfig = getDefaultConfig({
-  appName: "Ethernova NFT Marketplace",
-  projectId: process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID || "placeholder",
+export const wagmiConfig = createConfig({
   chains: [ethernova],
+  connectors: [injected()],
+  transports: {
+    [ethernova.id]: http("https://rpc.ethnova.net"),
+  },
   ssr: true,
 });
