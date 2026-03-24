@@ -9,13 +9,14 @@
     "lint": "eslint"
   },
   "dependencies": {
-    "@thirdweb-dev/sdk": "^4.0.99",
-    "ethers": "^5.8.0",
+    "@rainbow-me/rainbowkit": "^2.2.10",
+    "@tanstack/react-query": "^5.95.2",
     "next": "16.2.1",
     "react": "19.2.4",
     "react-dom": "19.2.4",
     "react-hot-toast": "^2.6.0",
-    "thirdweb": "^5.119.1"
+    "viem": "^2.47.6",
+    "wagmi": "^3.6.0"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",

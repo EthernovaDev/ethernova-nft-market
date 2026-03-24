@@ -1,8 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { MediaRenderer } from "thirdweb/react";
-import { client } from "@/lib/client";
+import Image from "next/image";
 
 type NFTCardProps = {
   tokenId: string;
@@ -24,12 +23,20 @@ export default function NFTCard({
   return (
     <Link href={`/nft/${collectionAddress}/${tokenId}`}>
       <div className="group bg-gray-900 rounded-xl overflow-hidden border border-gray-800 hover:border-purple-500/50 transition-all duration-300 hover:shadow-lg hover:shadow-purple-500/10">
-        <div className="aspect-square overflow-hidden bg-gray-800">
-          <MediaRenderer
-            client={client}
-            src={image}
-            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-          />
+        <div className="aspect-square overflow-hidden bg-gray-800 relative">
+          {image ? (
+            <Image
+              src={image}
+              alt={name}
+              fill
+              className="object-cover group-hover:scale-105 transition-transform duration-300"
+              unoptimized
+            />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center text-gray-600 text-4xl">
+              ?
+            </div>
+          )}
         </div>
         <div className="p-4">
           <h3 className="text-white font-semibold truncate">{name}</h3>

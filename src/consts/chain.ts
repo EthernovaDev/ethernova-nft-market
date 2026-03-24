@@ -1,4 +1,4 @@
-import { defineChain } from "thirdweb";
+import { defineChain } from "viem";
 
 export const ethernova = defineChain({
   id: 121525,
@@ -8,11 +8,15 @@ export const ethernova = defineChain({
     symbol: "NOVA",
     decimals: 18,
   },
-  rpc: "https://rpc.ethnova.net",
-  blockExplorers: [
-    {
+  rpcUrls: {
+    default: {
+      http: ["https://rpc.ethnova.net"],
+    },
+  },
+  blockExplorers: {
+    default: {
       name: "Ethernova Explorer",
       url: "https://explorer.ethnova.net",
     },
-  ],
+  },
 });

@@ -1,75 +1,70 @@
 "use client";
 
 import { useState } from "react";
-import { useActiveAccount } from "thirdweb/react";
-import { getContract, sendTransaction } from "thirdweb";
-import { client } from "@/lib/client";
-import { ethernova } from "@/consts/chain";
-import { MARKETPLACE_ADDRESS, NFT_COLLECTION_ADDRESS } from "@/consts/addresses";
-import { createListing } from "thirdweb/extensions/marketplace";
-import { isApprovedForAll, setApprovalForAll } from "thirdweb/extensions/erc721";
+import { useAccount, useWriteContract, useReadContract, useWaitForTransactionReceipt } from "wagmi";
+import { parseEther } from "viem";
+import { MARKETPLACE_ADDRESS, NFT_COLLECTION_ADDRESS, hasContracts } from "@/consts/addresses";
+import { marketplaceAbi, nftAbi } from "@/consts/abis";
 import toast from "react-hot-toast";
 
 export default function SellPage() {
-  const account = useActiveAccount();
+  const { address, isConnected } = useAccount();
   const [tokenId, setTokenId] = useState("");
   const [price, setPrice] = useState("");
-  const [isListing, setIsListing] = useState(false);
 
-  const hasContracts = MARKETPLACE_ADDRESS !== "" && NFT_COLLECTION_ADDRESS !== "";
+  const { data: isApproved } = useReadContract({
+    address: NFT_COLLECTION_ADDRESS,
+    abi: nftAbi,
+    functionName: "isApprovedForAll",
+    args: address && hasContracts ? [address, MARKETPLACE_ADDRESS] : undefined,
+    query: { enabled: !!address && hasContracts },
+  });
+
+  const { writeContract, data: txHash, isPending } = useWriteContract();
+  const { isLoading: isConfirming } = useWaitForTransactionReceipt({ hash: txHash });
+
+  const isListing = isPending || isConfirming;
+
+  async function handleApprove() {
+    if (!hasContracts) return;
+    writeContract(
+      {
+        address: NFT_COLLECTION_ADDRESS,
+        abi: nftAbi,
+        functionName: "setApprovalForAll",
+        args: [MARKETPLACE_ADDRESS, true],
+      },
+      {
+        onSuccess: () => toast.success("Approval granted!"),
+        onError: (err) => {
+          console.error(err);
+          toast.error("Approval failed");
+        },
+      }
+    );
+  }
 
   async function handleList() {
-    if (!account || !tokenId || !price || !hasContracts) return;
-
-    setIsListing(true);
-    try {
-      const marketplace = getContract({
-        client,
-        chain: ethernova,
+    if (!tokenId || !price || !hasContracts) return;
+    writeContract(
+      {
         address: MARKETPLACE_ADDRESS,
-      });
-
-      const nftCollection = getContract({
-        client,
-        chain: ethernova,
-        address: NFT_COLLECTION_ADDRESS,
-      });
-
-      // Check and set approval
-      const approved = await isApprovedForAll({
-        contract: nftCollection,
-        owner: account.address,
-        operator: MARKETPLACE_ADDRESS,
-      });
-
-      if (!approved) {
-        const approveTx = setApprovalForAll({
-          contract: nftCollection,
-          operator: MARKETPLACE_ADDRESS,
-          approved: true,
-        });
-        await sendTransaction({ transaction: approveTx, account });
-        toast.success("Approval granted!");
+        abi: marketplaceAbi,
+        functionName: "listNFT",
+        args: [NFT_COLLECTION_ADDRESS, BigInt(tokenId), parseEther(price)],
+      },
+      {
+        onSuccess: () => {
+          toast.success("NFT listed successfully!");
+          setTokenId("");
+          setPrice("");
+        },
+        onError: (err) => {
+          console.error(err);
+          toast.error("Failed to list NFT");
+        },
       }
-
-      // Create listing
-      const listingTx = createListing({
-        contract: marketplace,
-        assetContractAddress: NFT_COLLECTION_ADDRESS,
-        tokenId: BigInt(tokenId),
-        pricePerToken: price,
-      });
-
-      await sendTransaction({ transaction: listingTx, account });
-      toast.success("NFT listed successfully!");
-      setTokenId("");
-      setPrice("");
-    } catch (error: unknown) {
-      console.error(error);
-      toast.error("Failed to list NFT");
-    } finally {
-      setIsListing(false);
-    }
+    );
   }
 
   return (
@@ -90,7 +85,7 @@ export default function SellPage() {
             can list NFTs.
           </p>
         </div>
-      ) : !account ? (
+      ) : !isConnected ? (
         <div className="text-center py-16 bg-gray-900/50 rounded-2xl border border-gray-800">
           <span className="text-4xl mb-4 block">🔗</span>
           <h3 className="text-xl font-semibold text-white mb-2">
@@ -102,6 +97,21 @@ export default function SellPage() {
         </div>
       ) : (
         <div className="space-y-6 bg-gray-900/50 rounded-2xl border border-gray-800 p-8">
+          {!isApproved && (
+            <div className="p-4 bg-yellow-900/20 border border-yellow-700/30 rounded-lg">
+              <p className="text-yellow-400 text-sm mb-3">
+                You need to approve the marketplace to transfer your NFTs first.
+              </p>
+              <button
+                onClick={handleApprove}
+                disabled={isListing}
+                className="px-6 py-2 bg-yellow-600 rounded-lg font-semibold text-white hover:bg-yellow-500 transition-colors disabled:opacity-50"
+              >
+                {isListing ? "Approving..." : "Approve Marketplace"}
+              </button>
+            </div>
+          )}
+
           <div>
             <label className="block text-sm font-medium text-gray-300 mb-2">
               Token ID
@@ -130,7 +140,7 @@ export default function SellPage() {
 
           <button
             onClick={handleList}
-            disabled={isListing || !tokenId || !price}
+            disabled={isListing || !tokenId || !price || !isApproved}
             className="w-full py-3 bg-gradient-to-r from-purple-600 to-cyan-500 rounded-lg font-semibold text-white hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isListing ? "Listing..." : "List NFT for Sale"}

@@ -1,9 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ConnectButton } from "thirdweb/react";
-import { client } from "@/lib/client";
-import { ethernova } from "@/consts/chain";
+import { ConnectButton } from "@rainbow-me/rainbowkit";
 
 export default function Navbar() {
   return (
@@ -29,21 +27,7 @@ export default function Navbar() {
               </Link>
             </div>
           </div>
-          <ConnectButton
-            client={client}
-            chain={ethernova}
-            connectButton={{
-              label: "Connect Wallet",
-              style: {
-                background: "linear-gradient(135deg, #8B5CF6, #06B6D4)",
-                color: "white",
-                borderRadius: "0.5rem",
-                padding: "0.5rem 1.25rem",
-                fontSize: "0.875rem",
-                fontWeight: "600",
-              },
-            }}
-          />
+          <ConnectButton />
         </div>
       </div>
     </nav>

@@ -41,3 +41,10 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+AGENTS.md
+CLAUDE.md
+public/next.svg
+public/vercel.svg
+public/file.svg
+public/globe.svg
+public/window.svg

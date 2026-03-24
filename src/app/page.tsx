@@ -1,28 +1,30 @@
 "use client";
 
-import { useReadContract } from "thirdweb/react";
-import { getContract } from "thirdweb";
-import { getAllValidListings } from "thirdweb/extensions/marketplace";
-import { client } from "@/lib/client";
-import { ethernova } from "@/consts/chain";
-import { MARKETPLACE_ADDRESS } from "@/consts/addresses";
+import { useReadContract } from "wagmi";
+import { formatEther } from "viem";
+import { MARKETPLACE_ADDRESS, hasMarketplace } from "@/consts/addresses";
+import { marketplaceAbi } from "@/consts/abis";
 import NFTCard from "@/components/NFTCard";
 
+type Listing = {
+  listingId: bigint;
+  seller: `0x${string}`;
+  nftContract: `0x${string}`;
+  tokenId: bigint;
+  price: bigint;
+  isActive: boolean;
+};
+
 export default function Home() {
-  const hasMarketplace = MARKETPLACE_ADDRESS !== "";
 
-  const contract = hasMarketplace
-    ? getContract({
-        client,
-        chain: ethernova,
-        address: MARKETPLACE_ADDRESS,
-      })
-    : null;
-
-  const { data: listings, isLoading } = useReadContract(getAllValidListings, {
-    contract: contract!,
-    queryOptions: { enabled: !!contract },
+  const { data: listings, isLoading } = useReadContract({
+    address: MARKETPLACE_ADDRESS,
+    abi: marketplaceAbi,
+    functionName: "getActiveListings",
+    query: { enabled: hasMarketplace },
   });
+
+  const activeListings = (listings as Listing[] | undefined) ?? [];
 
   return (
     <div>
@@ -62,7 +64,7 @@ export default function Home() {
           <div className="grid grid-cols-3 gap-8 mt-16 max-w-2xl mx-auto">
             <div className="text-center">
               <p className="text-3xl font-bold text-white">
-                {listings?.length ?? 0}
+                {activeListings.length}
               </p>
               <p className="text-gray-500 text-sm mt-1">Listed NFTs</p>
             </div>
@@ -110,17 +112,17 @@ export default function Home() {
               </div>
             ))}
           </div>
-        ) : listings && listings.length > 0 ? (
+        ) : activeListings.length > 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-            {listings.map((listing) => (
+            {activeListings.map((listing) => (
               <NFTCard
-                key={listing.id.toString()}
+                key={listing.listingId.toString()}
                 tokenId={listing.tokenId.toString()}
-                name={listing.asset?.metadata?.name ?? `NFT #${listing.tokenId}`}
-                image={listing.asset?.metadata?.image ?? ""}
-                price={listing.currencyValuePerToken?.displayValue}
-                collectionAddress={listing.assetContractAddress}
-                seller={listing.creatorAddress}
+                name={`NFT #${listing.tokenId}`}
+                image=""
+                price={formatEther(listing.price)}
+                collectionAddress={listing.nftContract}
+                seller={listing.seller}
               />
             ))}
           </div>

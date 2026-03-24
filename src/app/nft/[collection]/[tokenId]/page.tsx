@@ -1,14 +1,21 @@
 "use client";
 
 import { use } from "react";
-import { useActiveAccount, useReadContract, MediaRenderer } from "thirdweb/react";
-import { getContract, prepareContractCall, sendTransaction } from "thirdweb";
-import { getNFT } from "thirdweb/extensions/erc721";
-import { getAllValidListings, buyFromListing } from "thirdweb/extensions/marketplace";
-import { client } from "@/lib/client";
-import { ethernova } from "@/consts/chain";
-import { MARKETPLACE_ADDRESS } from "@/consts/addresses";
+import Image from "next/image";
+import { useAccount, useReadContract, useWriteContract, useWaitForTransactionReceipt } from "wagmi";
+import { formatEther } from "viem";
+import { MARKETPLACE_ADDRESS, hasMarketplace } from "@/consts/addresses";
+import { marketplaceAbi, nftAbi } from "@/consts/abis";
 import toast from "react-hot-toast";
+
+type Listing = {
+  listingId: bigint;
+  seller: `0x${string}`;
+  nftContract: `0x${string}`;
+  tokenId: bigint;
+  price: bigint;
+  isActive: boolean;
+};
 
 export default function NFTDetailPage({
   params,
@@ -16,59 +23,72 @@ export default function NFTDetailPage({
   params: Promise<{ collection: string; tokenId: string }>;
 }) {
   const { collection, tokenId } = use(params);
-  const account = useActiveAccount();
-  const hasMarketplace = MARKETPLACE_ADDRESS !== "";
+  const { address, isConnected } = useAccount();
+  const collectionAddr = collection as `0x${string}`;
 
-  const nftContract = getContract({
-    client,
-    chain: ethernova,
-    address: collection,
+  // Get NFT owner
+  const { data: owner, isLoading: loadingOwner } = useReadContract({
+    address: collectionAddr,
+    abi: nftAbi,
+    functionName: "ownerOf",
+    args: [BigInt(tokenId)],
   });
 
-  const marketplaceContract = hasMarketplace
-    ? getContract({
-        client,
-        chain: ethernova,
-        address: MARKETPLACE_ADDRESS,
-      })
-    : null;
-
-  const { data: nft, isLoading: loadingNft } = useReadContract(getNFT, {
-    contract: nftContract,
-    tokenId: BigInt(tokenId),
+  // Get NFT metadata URI
+  const { data: tokenURI } = useReadContract({
+    address: collectionAddr,
+    abi: nftAbi,
+    functionName: "tokenURI",
+    args: [BigInt(tokenId)],
   });
 
-  const { data: listings } = useReadContract(getAllValidListings, {
-    contract: marketplaceContract!,
-    queryOptions: { enabled: !!marketplaceContract },
+  // Get collection name
+  const { data: collectionName } = useReadContract({
+    address: collectionAddr,
+    abi: nftAbi,
+    functionName: "name",
   });
 
-  const listing = listings?.find(
+  // Get active listings and find this NFT
+  const { data: listings } = useReadContract({
+    address: MARKETPLACE_ADDRESS,
+    abi: marketplaceAbi,
+    functionName: "getActiveListings",
+    query: { enabled: hasMarketplace },
+  });
+
+  const allListings = (listings as Listing[] | undefined) ?? [];
+  const listing = allListings.find(
     (l) =>
-      l.assetContractAddress.toLowerCase() === collection.toLowerCase() &&
+      l.nftContract.toLowerCase() === collection.toLowerCase() &&
       l.tokenId.toString() === tokenId
   );
 
-  async function handleBuy() {
-    if (!account || !listing || !marketplaceContract) return;
+  const { writeContract, data: txHash, isPending } = useWriteContract();
+  const { isLoading: isConfirming } = useWaitForTransactionReceipt({ hash: txHash });
+  const isBuying = isPending || isConfirming;
 
-    try {
-      const tx = buyFromListing({
-        contract: marketplaceContract,
-        listingId: listing.id,
-        quantity: 1n,
-        recipient: account.address,
-      });
-
-      await sendTransaction({ transaction: tx, account });
-      toast.success("NFT purchased successfully!");
-    } catch (error: unknown) {
-      console.error(error);
-      toast.error("Failed to purchase NFT");
-    }
+  function handleBuy() {
+    if (!listing || !hasMarketplace) return;
+    writeContract(
+      {
+        address: MARKETPLACE_ADDRESS,
+        abi: marketplaceAbi,
+        functionName: "buyNFT",
+        args: [listing.listingId],
+        value: listing.price,
+      },
+      {
+        onSuccess: () => toast.success("NFT purchased successfully!"),
+        onError: (err) => {
+          console.error(err);
+          toast.error("Failed to purchase NFT");
+        },
+      }
+    );
   }
 
-  if (loadingNft) {
+  if (loadingOwner) {
     return (
       <div className="max-w-6xl mx-auto px-4 py-12">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-12 animate-pulse">
@@ -87,41 +107,54 @@ export default function NFTDetailPage({
     <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
         {/* NFT Image */}
-        <div className="aspect-square rounded-2xl overflow-hidden bg-gray-900 border border-gray-800">
-          <MediaRenderer
-            client={client}
-            src={nft?.metadata?.image ?? ""}
-            className="w-full h-full object-cover"
-          />
+        <div className="aspect-square rounded-2xl overflow-hidden bg-gray-900 border border-gray-800 relative">
+          {tokenURI ? (
+            <div className="w-full h-full flex items-center justify-center p-8">
+              <div className="text-center">
+                <div className="w-32 h-32 bg-gradient-to-br from-purple-500 to-cyan-400 rounded-2xl mx-auto mb-4" />
+                <p className="text-gray-400 text-sm break-all">{tokenURI as string}</p>
+              </div>
+            </div>
+          ) : (
+            <div className="w-full h-full flex items-center justify-center text-gray-600 text-6xl">
+              ?
+            </div>
+          )}
         </div>
 
         {/* NFT Details */}
         <div>
           <p className="text-purple-400 text-sm font-medium mb-2">
-            {collection.slice(0, 6)}...{collection.slice(-4)}
+            {(collectionName as string) ?? `${collection.slice(0, 6)}...${collection.slice(-4)}`}
           </p>
           <h1 className="text-3xl font-bold text-white mb-4">
-            {nft?.metadata?.name ?? `NFT #${tokenId}`}
+            NFT #{tokenId}
           </h1>
-
-          {nft?.metadata?.description && (
-            <p className="text-gray-400 mb-6">{nft.metadata.description}</p>
-          )}
 
           {/* Owner */}
           <div className="bg-gray-900/50 rounded-xl border border-gray-800 p-4 mb-6">
             <p className="text-gray-500 text-sm">Owner</p>
             <a
-              href={`https://explorer.ethnova.net/address/${nft?.owner}`}
+              href={`https://explorer.ethnova.net/address/${owner}`}
               target="_blank"
               rel="noopener noreferrer"
               className="text-white hover:text-purple-400 transition-colors"
             >
-              {nft?.owner
-                ? `${nft.owner.slice(0, 8)}...${nft.owner.slice(-6)}`
+              {owner
+                ? `${(owner as string).slice(0, 8)}...${(owner as string).slice(-6)}`
                 : "Unknown"}
             </a>
           </div>
+
+          {/* Token URI */}
+          {tokenURI && (
+            <div className="bg-gray-900/50 rounded-xl border border-gray-800 p-4 mb-6">
+              <p className="text-gray-500 text-sm">Token URI</p>
+              <p className="text-gray-300 text-sm break-all mt-1">
+                {tokenURI as string}
+              </p>
+            </div>
+          )}
 
           {/* Listing / Buy */}
           {listing ? (
@@ -129,19 +162,20 @@ export default function NFTDetailPage({
               <div className="flex items-center justify-between mb-4">
                 <span className="text-gray-400">Current Price</span>
                 <span className="text-2xl font-bold text-cyan-400">
-                  {listing.currencyValuePerToken?.displayValue} NOVA
+                  {formatEther(listing.price)} NOVA
                 </span>
               </div>
               <p className="text-gray-500 text-sm mb-4">
-                Seller: {listing.creatorAddress.slice(0, 6)}...
-                {listing.creatorAddress.slice(-4)}
+                Seller: {listing.seller.slice(0, 6)}...
+                {listing.seller.slice(-4)}
               </p>
-              {account ? (
+              {isConnected ? (
                 <button
                   onClick={handleBuy}
-                  className="w-full py-3 bg-gradient-to-r from-purple-600 to-cyan-500 rounded-lg font-semibold text-white hover:opacity-90 transition-opacity"
+                  disabled={isBuying}
+                  className="w-full py-3 bg-gradient-to-r from-purple-600 to-cyan-500 rounded-lg font-semibold text-white hover:opacity-90 transition-opacity disabled:opacity-50"
                 >
-                  Buy Now
+                  {isBuying ? "Buying..." : "Buy Now"}
                 </button>
               ) : (
                 <p className="text-center text-gray-500 text-sm">
@@ -154,32 +188,6 @@ export default function NFTDetailPage({
               <p className="text-gray-500">This NFT is not currently listed for sale.</p>
             </div>
           )}
-
-          {/* Attributes */}
-          {nft?.metadata?.attributes &&
-            Array.isArray(nft.metadata.attributes) &&
-            nft.metadata.attributes.length > 0 && (
-              <div className="mt-6">
-                <h3 className="text-lg font-semibold text-white mb-3">Attributes</h3>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                  {(nft.metadata.attributes as Array<{ trait_type?: string; value?: string }>).map(
-                    (attr, i) => (
-                      <div
-                        key={i}
-                        className="bg-gray-900/50 rounded-lg border border-gray-800 p-3 text-center"
-                      >
-                        <p className="text-purple-400 text-xs uppercase">
-                          {attr.trait_type}
-                        </p>
-                        <p className="text-white text-sm font-medium mt-1">
-                          {attr.value}
-                        </p>
-                      </div>
-                    )
-                  )}
-                </div>
-              </div>
-            )}
         </div>
       </div>
     </div>
