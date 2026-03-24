@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.24;
+pragma solidity ^0.8.19;
 
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
-import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 
 contract NovaMarketplace is Ownable, ReentrancyGuard {
     struct Listing {
@@ -34,7 +34,7 @@ contract NovaMarketplace is Ownable, ReentrancyGuard {
     );
     event ListingCancelled(uint256 indexed listingId);
 
-    constructor(uint256 _platformFeeBps) Ownable(msg.sender) {
+    constructor(uint256 _platformFeeBps) {
         require(_platformFeeBps <= 1000, "Fee too high"); // max 10%
         platformFeeBps = _platformFeeBps;
     }
