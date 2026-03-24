@@ -1,27 +1,98 @@
 "use client";
 
-import { useAccount, useConnect, useDisconnect, useBalance, useSwitchChain } from "wagmi";
+import { useAccount, useDisconnect, useBalance, useSwitchChain } from "wagmi";
+import { useConnect } from "wagmi";
 import { ethernova } from "@/consts/chain";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 
 export default function ConnectWallet() {
   const { address, isConnected, chain } = useAccount();
-  const { connect, connectors, isPending, error } = useConnect();
+  const { connectors, connect } = useConnect();
   const { disconnect } = useDisconnect();
   const { switchChain } = useSwitchChain();
   const [showMenu, setShowMenu] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [connecting, setConnecting] = useState(false);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  // Reset connecting state when connection succeeds
+  useEffect(() => {
+    if (isConnected) setConnecting(false);
+  }, [isConnected]);
 
   const { data: balance } = useBalance({
     address,
     query: { enabled: isConnected },
   });
 
-  // Don't render until client-side to avoid hydration mismatch
+  const getEthereum = useCallback(() => {
+    if (typeof window !== "undefined") {
+      return (window as unknown as { ethereum?: { request: (args: { method: string; params?: unknown[] }) => Promise<unknown> } }).ethereum;
+    }
+    return undefined;
+  }, []);
+
+  const handleConnect = useCallback(async () => {
+    setError("");
+    setConnecting(true);
+
+    const ethereum = getEthereum();
+    if (!ethereum) {
+      window.open("https://metamask.io/download/", "_blank");
+      setConnecting(false);
+      return;
+    }
+
+    try {
+      // Request accounts directly via window.ethereum
+      await ethereum.request({ method: "eth_requestAccounts" });
+
+      // Try adding Ethernova chain
+      try {
+        await ethereum.request({
+          method: "wallet_addEthereumChain",
+          params: [
+            {
+              chainId: "0x" + ethernova.id.toString(16),
+              chainName: ethernova.name,
+              nativeCurrency: ethernova.nativeCurrency,
+              rpcUrls: [ethernova.rpcUrls.default.http[0]],
+              blockExplorerUrls: [ethernova.blockExplorers.default.url],
+            },
+          ],
+        });
+      } catch {
+        // Chain might already exist, try switching
+        try {
+          await ethereum.request({
+            method: "wallet_switchEthereumChain",
+            params: [{ chainId: "0x" + ethernova.id.toString(16) }],
+          });
+        } catch {
+          // ignore switch error
+        }
+      }
+
+      // Now connect via wagmi to sync state
+      const connector = connectors[0];
+      if (connector) {
+        connect({ connector });
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Connection failed";
+      if (msg.includes("rejected") || msg.includes("denied")) {
+        setError("Rejected by user");
+      } else {
+        setError("Connection failed");
+      }
+      setConnecting(false);
+    }
+  }, [getEthereum, connectors, connect]);
+
   if (!mounted) {
     return (
       <button
@@ -36,37 +107,17 @@ export default function ConnectWallet() {
   const wrongChain = isConnected && chain?.id !== ethernova.id;
 
   if (!isConnected) {
-    const hasWallet = typeof window !== "undefined" && (window as unknown as Record<string, unknown>).ethereum;
-
     return (
       <div className="flex flex-col items-end gap-1">
         <button
-          onClick={() => {
-            if (!hasWallet) {
-              window.open("https://metamask.io/download/", "_blank");
-              return;
-            }
-            // Try all available connectors, pick the first one
-            const connector = connectors[0];
-            if (connector) {
-              connect({ connector, chainId: ethernova.id });
-            }
-          }}
-          disabled={isPending}
+          onClick={handleConnect}
+          disabled={connecting}
           className="px-5 py-2.5 bg-gradient-to-r from-purple-600 to-cyan-500 rounded-lg font-semibold text-white text-sm hover:opacity-90 transition-opacity disabled:opacity-50"
         >
-          {isPending
-            ? "Connecting..."
-            : hasWallet
-              ? "Connect Wallet"
-              : "Install MetaMask"}
+          {connecting ? "Check Wallet..." : "Connect Wallet"}
         </button>
         {error && (
-          <p className="text-red-400 text-xs max-w-[200px] truncate">
-            {error.message.includes("User rejected")
-              ? "Connection rejected"
-              : "Connection failed"}
-          </p>
+          <p className="text-red-400 text-xs">{error}</p>
         )}
       </div>
     );
