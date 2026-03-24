@@ -60,13 +60,13 @@ export async function POST(request: NextRequest) {
       `INSERT INTO profiles (address, username, bio, avatar_url, website, twitter, discord, telegram, updated_at)
        VALUES (LOWER($1), $2, $3, $4, $5, $6, $7, $8, NOW())
        ON CONFLICT (address) DO UPDATE SET
-         username = COALESCE($2, profiles.username),
-         bio = COALESCE($3, profiles.bio),
-         avatar_url = COALESCE($4, profiles.avatar_url),
-         website = COALESCE($5, profiles.website),
-         twitter = COALESCE($6, profiles.twitter),
-         discord = COALESCE($7, profiles.discord),
-         telegram = COALESCE($8, profiles.telegram),
+         username = COALESCE(NULLIF($2, ''), profiles.username),
+         bio = COALESCE(NULLIF($3, ''), profiles.bio),
+         avatar_url = COALESCE(NULLIF($4, ''), profiles.avatar_url),
+         website = COALESCE(NULLIF($5, ''), profiles.website),
+         twitter = COALESCE(NULLIF($6, ''), profiles.twitter),
+         discord = COALESCE(NULLIF($7, ''), profiles.discord),
+         telegram = COALESCE(NULLIF($8, ''), profiles.telegram),
          updated_at = NOW()
        RETURNING address, username, bio, avatar_url, website, twitter, discord, telegram, is_verified`,
       [
