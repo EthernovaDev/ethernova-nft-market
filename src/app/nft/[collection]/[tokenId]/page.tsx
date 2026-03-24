@@ -116,7 +116,7 @@ export default function NFTDetailPage({
             <img
               src={metadata.image}
               alt={metadata.name || `NFT #${tokenId}`}
-              className="w-full h-full object-cover"
+              className="w-full h-full object-contain"
             />
           ) : (
             <div className="w-full h-full flex items-center justify-center text-gray-600 text-6xl">

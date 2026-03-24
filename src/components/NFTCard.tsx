@@ -33,7 +33,7 @@ export default function NFTCard({
               src={image}
               alt={name}
               fill
-              className="object-cover group-hover:scale-105 transition-transform duration-300"
+              className="object-contain group-hover:scale-105 transition-transform duration-300"
               unoptimized
             />
           ) : (
