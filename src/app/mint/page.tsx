@@ -62,7 +62,7 @@ export default function MintPage() {
           return;
         }
 
-        imageUrl = `https://ipfs.ethnova.net/ipfs/${data.cid}`;
+        imageUrl = `ipfs://${data.cid}`;
       } catch {
         toast.error("Upload failed");
         setUploading(false);
@@ -90,7 +90,7 @@ export default function MintPage() {
         setUploading(false);
         return;
       }
-      metadataUri = `https://ipfs.ethnova.net/ipfs/${metaData.cid}`;
+      metadataUri = `ipfs://${metaData.cid}`;
     } catch {
       toast.error("Metadata upload failed");
       setUploading(false);

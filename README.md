@@ -175,6 +175,115 @@ npm start
 
 The marketplace provides a CoinGecko-compatible API at `/api/coingecko` that serves the NOVA/USD price from Klingex exchange. This is used by the Ethernova Explorer to display NOVA prices.
 
+## Decentralized Storage
+
+### How NFT data is stored
+
+All NFT images and metadata are stored on **IPFS** (InterPlanetary File System). When someone mints an NFT:
+
+1. Image is uploaded to IPFS → returns a **CID** (content hash)
+2. Metadata JSON is uploaded to IPFS → returns another CID
+3. The on-chain `tokenURI` is set to `ipfs://<metadata-CID>`
+
+The `ipfs://` protocol is **universal** - any IPFS node in the world can serve this content. If our gateway (`ipfs.ethnova.net`) goes down, the content is still accessible via:
+
+- `https://ipfs.io/ipfs/<CID>`
+- `https://dweb.link/ipfs/<CID>`
+- `https://cloudflare-ipfs.com/ipfs/<CID>`
+- Any other IPFS gateway
+- Directly via any IPFS node: `ipfs cat <CID>`
+
+### Run your own IPFS node (help pin Ethernova NFTs)
+
+Anyone can run an IPFS node to help keep Ethernova NFT data available. The more nodes that pin the content, the more decentralized and resilient it becomes.
+
+#### Quick setup (Ubuntu/Debian)
+
+```bash
+# 1. Install IPFS
+wget https://dist.ipfs.tech/kubo/v0.32.1/kubo_v0.32.1_linux-amd64.tar.gz
+tar xzf kubo_v0.32.1_linux-amd64.tar.gz
+sudo mv kubo/ipfs /usr/local/bin/
+rm -rf kubo kubo_v0.32.1_linux-amd64.tar.gz
+
+# 2. Initialize
+export IPFS_PATH=/var/lib/ipfs
+ipfs init --profile server
+
+# 3. Start the daemon
+ipfs daemon &
+
+# 4. Connect to the Ethernova IPFS node (bootstrap)
+ipfs swarm connect /dns4/ipfs.ethnova.net/tcp/4001/p2p/<PEER_ID>
+
+# 5. Pin all Ethernova NFTs (they will be fetched from the network)
+# Example: pin a specific NFT image
+ipfs pin add QmSsTvXPUCgzmUgGCVTi2CbatnRXDcbm39fvJrknMDvbky
+```
+
+#### Run as a service
+
+```bash
+# Create systemd service
+sudo tee /etc/systemd/system/ipfs.service > /dev/null << 'EOF'
+[Unit]
+Description=IPFS Daemon
+After=network.target
+
+[Service]
+User=ipfs
+Environment=IPFS_PATH=/var/lib/ipfs
+ExecStart=/usr/local/bin/ipfs daemon --enable-gc
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+sudo systemctl enable ipfs
+sudo systemctl start ipfs
+```
+
+#### Optional: Run a public gateway
+
+If you want to serve NFT images via your own gateway:
+
+```bash
+# IPFS gateway runs on port 8080 by default
+# Set up nginx reverse proxy
+server {
+    listen 443 ssl;
+    server_name ipfs.yourdomain.com;
+
+    location / {
+        proxy_pass http://127.0.0.1:8080;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        add_header Cache-Control "public, max-age=86400, immutable";
+        add_header Access-Control-Allow-Origin "*";
+    }
+}
+```
+
+#### Docker
+
+```bash
+docker run -d \
+  --name ipfs-node \
+  -p 4001:4001 \
+  -p 8080:8080 \
+  -v ipfs-data:/data/ipfs \
+  ipfs/kubo:latest
+```
+
+### Why this matters
+
+- **No single point of failure** - if one node goes down, others still serve the content
+- **Content-addressed** - the CID is a hash of the content, so it can't be tampered with
+- **Permanent** - as long as at least one node pins the content, it's available forever
+- **Censorship resistant** - no single entity can take down the content
+
 ## License
 
 MIT
