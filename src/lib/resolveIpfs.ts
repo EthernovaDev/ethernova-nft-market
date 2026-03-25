@@ -8,6 +8,11 @@ export function ipfsToHttp(uri: string): string {
     return `/api/ipfs/${cid}`;
   }
   if (uri.startsWith("data:")) return uri;
+  // Convert our IPFS gateway URLs to local proxy for faster loading
+  const ipfsGatewayMatch = uri.match(/https?:\/\/ipfs\.ethnova\.net\/ipfs\/(.+)/);
+  if (ipfsGatewayMatch) {
+    return `/api/ipfs/${ipfsGatewayMatch[1]}`;
+  }
   return uri;
 }
 
