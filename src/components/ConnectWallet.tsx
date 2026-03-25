@@ -57,6 +57,20 @@ export default function ConnectWallet() {
   const wrongChain = isConnected && chain?.id !== ethernova.id;
 
   if (!isConnected) {
+    const isMobile = typeof navigator !== "undefined" && /iPhone|iPad|Android/i.test(navigator.userAgent);
+    const hasWallet = typeof window !== "undefined" && !!(window as unknown as Record<string, unknown>).ethereum;
+
+    if (isMobile && !hasWallet) {
+      return (
+        <a
+          href={`https://metamask.app.link/dapp/${typeof window !== "undefined" ? window.location.host : "nft.ethnova.net"}`}
+          className="px-5 py-2.5 bg-gradient-to-r from-purple-600 to-cyan-500 rounded-lg font-semibold text-white text-sm hover:opacity-90 transition-opacity"
+        >
+          Open in MetaMask
+        </a>
+      );
+    }
+
     return (
       <div className="flex flex-col items-end gap-1">
         <button
