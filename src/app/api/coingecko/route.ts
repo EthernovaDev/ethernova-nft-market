@@ -7,12 +7,12 @@ export async function GET(request: NextRequest) {
   const price = await getNovaUsdPrice();
 
   // CoinGecko simple/price format
-  const data: Record<string, Record<string, number | null>> = {
+  const data: Record<string, Record<string, number>> = {
     nova: {
-      usd: price,
-      usd_market_cap: null,
-      usd_24h_vol: null,
-      usd_24h_change: null,
+      usd: price ?? 0,
+      usd_market_cap: 0,
+      usd_24h_vol: 0,
+      usd_24h_change: 0,
     },
   };
 
